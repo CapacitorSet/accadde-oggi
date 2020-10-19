@@ -5,10 +5,10 @@ logging.basicConfig(level=logging.INFO)
 from config import CHANNEL_FROM_ID, TO_GROUP_ID, TELEGRAM_BOT_TOKEN, SENTRY_URL
 from datetime import datetime
 import sentry_sdk
-from sentry_sdk import configure_scope, add_breadcrumb, Scope, capture_exception
+
 sentry_sdk.init(SENTRY_URL)
-from telegram import Update, CallbackQuery, Bot, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
-from telegram.ext import Updater, CallbackContext, CommandHandler
+from telegram import Update, ParseMode
+from telegram.ext import Updater, CommandHandler
 from chan_forward import get_convs_for_day_month
 
 
@@ -19,43 +19,35 @@ def accadde(update: Update, context):
     # Blacklist: chat diverse da ritaly, o TARS come autore
     if (update.message.chat.id != TO_GROUP_ID) or (update.message.from_user.id == 75818507):
         return
+    if len(context.args) > 3:
+        update.message.reply_text("Sintassi: /accadde [(anno [mese giorno]|mese giorno)]")
+        return
+
     if len(context.args) == 3:
         # Anno mese giorno
-        convs_years = get_convs_for_day_month(int(context.args[2]), int(context.args[1]))
-        if not convs_years:
-            update.message.reply_text(f"Non è successo niente quel giorno.")
-            return
+        month = int(context.args[1])
+        day = int(context.args[2])
+    elif len(context.args) == 2:
+        # Mese Giorno
+        month = int(context.args[0])
+        day = int(context.args[1])
+    else:
+        now = datetime.now()
+        month = now.month
+        day = now.day
+
+    convs_years = get_convs_for_day_month(day, month)
+    if not convs_years:
+        update.message.reply_text(f"Non è successo niente quel giorno.")
+        return
+
+    if len(context.args) == 3 or len(context.args) == 1:
         selected_year = int(context.args[0])
         if selected_year not in convs_years.keys():
             update.message.reply_text(f"Non è successo niente quel giorno.")
             return
-    elif len(context.args) == 2:
-        # Mese Giorno
-        convs_years = get_convs_for_day_month(int(context.args[1]), int(context.args[0]))
-        if not convs_years:
-            update.message.reply_text(f"Non è successo niente quel giorno.")
-            return
-        selected_year = random.choice(list(convs_years.keys()))
-    elif len(context.args) == 1:
-        # Anno
-        now = datetime.now()
-        convs_years = get_convs_for_day_month(now.day, now.month)
-        if not convs_years:
-            update.message.reply_text(f"Non è successo niente oggi ma in quell'anno.")
-            return
-        selected_year = int(context.args[0])
-    elif len(context.args) == 0:
-        # Random
-        now = datetime.now()
-        convs_years = get_convs_for_day_month(now.day, now.month)
-        if not convs_years:
-            update.message.reply_text(f"Non è successo niente gli anni precedenti.")
-            return
-
-        selected_year = random.choice(list(convs_years.keys()))
     else:
-        update.message.reply_text("Sintassi: /accadde [(anno [mese giorno]|mese giorno)]")
-        return
+        selected_year = random.choice(list(convs_years.keys()))
 
     convs = convs_years[selected_year]
     selected_conv = random.choice(convs)
