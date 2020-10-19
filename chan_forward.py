@@ -28,6 +28,8 @@ def get_messages_for_day_month(day: int, month: int) -> Dict[int, pd.DataFrame]:
 
 def get_convs_from_messages(messages: pd.DataFrame):
     convs = []
+    if len(messages) == 0:
+        return convs
     last_date = messages.index[0]
     conv = []
     for index, message in messages.iterrows():
